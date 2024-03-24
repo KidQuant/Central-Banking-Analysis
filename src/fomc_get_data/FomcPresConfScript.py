@@ -20,18 +20,17 @@ from bs4 import BeautifulSoup
 from .FomcBase import FomcBase
 
 
-class FomcMeetingScript(FomcBase):
+class FomcPresConfScript(FomcBase):
     """
-    A convenient class for extracting meeting scripts from the FOMC website.
-    FOMC publishes the meeting scripts after 5 years, so this cannot be used for the prediction of the monetary policy in real-time.
-
+    A convenient class for extracting press conference scripts from the FOMC website.
+    It is only available from April 2011.
     Example Usage:
-        fomc = FomcMeetingScript()
+        fomc = FomcPresConfScript()
         df = fomc.get_contents()
     """
 
     def __init__(self, verbose=True, max_threads=10, base_dir="../data/FOMC/"):
-        super().__init__("meeting_script", verbose, max_threads, base_dir)
+        super().__init__("presconf_script", verbose, max_threads, base_dir)
 
     def _get_links(self, from_year):
         """
@@ -46,10 +45,38 @@ class FomcMeetingScript(FomcBase):
         r = requests.get(self.calendar_url)
         soup = BeautifulSoup(r.text, "html.parser")
 
-        # Meeting Script can be found only in the archive as it is published after five years
-        if from_year > 2014:
-            print("Meeting scripts are available for 2014 or older")
+        if self.verbose:
+            print("Getting links for press conference scripts...")
+        presconfs = soup.find_all(
+            "a", href=re.compile("^/monetarypolicy/fomcpresconf\d{8}.htm")
+        )
+        presconf_urls = [
+            self.base_url + presconf.attrs["href"] for presconf in presconfs
+        ]
+        for presconf_url in presconf_urls:
+            r_presconf = requests.get(presconf_url)
+            soup_presconf = BeautifulSoup(r_presconf.text, "html.parser")
+            contents = soup_presconf.find_all(
+                "a", href=re.compile("^/mediacenter/files/FOMCpresconf\d{8}.pdf")
+            )
+            for content in contents:
+                # print(content)
+                self.links.append(content.attrs["href"])
+                self.speakers.append(
+                    self._speaker_from_date(self._date_from_link(content.attrs["href"]))
+                )
+                self.titles.append("FOMC Press Conference Transcript")
+                self.dates.append(
+                    datetime.strptime(
+                        self._date_from_link(content.attrs["href"]), "%Y-%m-%d"
+                    )
+                )
+        if self.verbose:
+            print("{} links found in current page.".format(len(self.links)))
+
+        # Archived before 2015
         if from_year <= 2014:
+            print("Getting links from archive pages...")
             for year in range(from_year, 2015):
                 yearly_contents = []
                 fomc_yearly_url = (
@@ -60,27 +87,43 @@ class FomcMeetingScript(FomcBase):
                 )
                 r_year = requests.get(fomc_yearly_url)
                 soup_yearly = BeautifulSoup(r_year.text, "html.parser")
-                meeting_scripts = soup_yearly.find_all(
-                    "a", href=re.compile("^/monetarypolicy/files/FOMC\d{8}meeting.pdf")
+
+                presconf_hists = soup_yearly.find_all(
+                    "a", href=re.compile("^/monetarypolicy/fomcpresconf\d{8}.htm")
                 )
-                for meeting_script in meeting_scripts:
-                    self.links.append(meeting_script.attrs["href"])
-                    self.speakers.append(
-                        self._speaker_from_date(
-                            self._date_from_link(meeting_script.attrs["href"])
-                        )
+                presconf_hist_urls = [
+                    self.base_url + presconf_hist.attrs["href"]
+                    for presconf_hist in presconf_hists
+                ]
+                for presconf_hist_url in presconf_hist_urls:
+                    # print(presconf_hist_url)
+                    r_presconf_hist = requests.get(presconf_hist_url)
+                    soup_presconf_hist = BeautifulSoup(
+                        r_presconf_hist.text, "html.parser"
                     )
-                    self.titles.append("FOMC Meeting Transcript")
-                    self.dates.append(
-                        datetime.strptime(
-                            self._date_from_link(meeting_script.attrs["href"]),
-                            "%Y-%m-%d",
-                        )
+                    yearly_contents = soup_presconf_hist.find_all(
+                        "a",
+                        href=re.compile("^/mediacenter/files/FOMCpresconf\d{8}.pdf"),
                     )
+                    for yearly_content in yearly_contents:
+                        # print(yearly_content)
+                        self.links.append(yearly_content.attrs["href"])
+                        self.speakers.append(
+                            self._speaker_from_date(
+                                self._date_from_link(yearly_content.attrs["href"])
+                            )
+                        )
+                        self.titles.append("FOMC Press Conference Transcript")
+                        self.dates.append(
+                            datetime.strptime(
+                                self._date_from_link(yearly_content.attrs["href"]),
+                                "%Y-%m-%d",
+                            )
+                        )
                 if self.verbose:
                     print(
-                        "YEAR: {} - {} meeting scripts found.".format(
-                            year, len(meeting_scripts)
+                        "YEAR: {} - {} links found.".format(
+                            year, len(presconf_hist_urls)
                         )
                     )
             print("There are total ", len(self.links), " links for ", self.content_type)
@@ -89,7 +132,7 @@ class FomcMeetingScript(FomcBase):
         """
         Override a private function that adds a related article for 1 link into the instance variable
         The index is the index in the article to add to.
-        Due to concurrent processing, we need to make sure the articles are stored in the right order
+        Due to concurrent prcessing, we need to make sure the articles are stored in the right order
         """
         if self.verbose:
             sys.stdout.write(".")
@@ -98,13 +141,14 @@ class FomcMeetingScript(FomcBase):
         link_url = self.base_url + link
         pdf_filepath = (
             self.base_dir
-            + "script_pdf/FOMC_MeetingScript_"
+            + "script_pdf/FOMC_PresConfScript_"
             + self._date_from_link(link)
             + ".pdf"
         )
 
         # Scripts are provided only in pdf. Save the pdf and pass the content
         res = requests.get(link_url)
+
         with open(pdf_filepath, "wb") as f:
             f.write(res.content)
 
