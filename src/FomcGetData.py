@@ -15,7 +15,7 @@ from fomc_get_data.FomcTestimony import FomcTestimony
 
 def download_data(fomc, from_year):
     df = fomc.get_contents(from_year)
-    print("Shape of the download data: ", df.shape)
+    print("Shape of the downloaded data: ", df.shape)
     print("The first 5 rows of the data: \n", df.head())
     print("The last 5 rows of the data: \n", df.tail())
     fomc.pickle_dump_df(filename=fomc.content_type + ".pickle")
@@ -50,7 +50,7 @@ if __name__ == "__main__":
     content_type = args[0].lower()
     if content_type not in content_type_all:
         print("Usage: ", pg_name)
-        print("Please specify the first arugment from, ", content_type_all)
+        print("Please specify the first argument from ", content_type_all)
         sys.exit(1)
 
     if (from_year < 1980) or (from_year > 2020):
@@ -59,7 +59,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     if content_type == "all":
-        fomc = FomcTestimony()
+        fomc = FomcStatement()
         download_data(fomc, from_year)
         fomc = FomcMinutes()
         download_data(fomc, from_year)
@@ -71,7 +71,6 @@ if __name__ == "__main__":
         download_data(fomc, from_year)
         fomc = FomcTestimony()
         download_data(fomc, from_year)
-
     else:
         if content_type == "statement":
             fomc = FomcStatement()
