@@ -5,6 +5,7 @@ from datetime import date
 import numpy as np
 import pandas as pd
 
+from fomc_get_data.FomcBase import FomcBase
 from fomc_get_data.FomcMeetingScript import FomcMeetingScript
 from fomc_get_data.FomcMinutes import FomcMinutes
 from fomc_get_data.FomcPresConfScript import FomcPresConfScript
@@ -60,7 +61,7 @@ if __name__ == "__main__":
 
     if content_type == "all":
         fomc = FomcStatement()
-        download_data(fomc, from_year)
+        download_data(fomc.get_contents, from_year)
         fomc = FomcMinutes()
         download_data(fomc, from_year)
         fomc = FomcMeetingScript()
