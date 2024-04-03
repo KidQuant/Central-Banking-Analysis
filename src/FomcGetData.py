@@ -61,7 +61,7 @@ if __name__ == "__main__":
 
     if content_type == "all":
         fomc = FomcStatement()
-        download_data(fomc.get_contents, from_year)
+        download_data(fomc, from_year)
         fomc = FomcMinutes()
         download_data(fomc, from_year)
         fomc = FomcMeetingScript()
