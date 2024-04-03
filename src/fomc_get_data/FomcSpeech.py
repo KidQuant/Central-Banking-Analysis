@@ -10,8 +10,10 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 
-# Import parent class
 from .FomcBase import FomcBase
+
+# Import parent class
+
 
 
 class FomcSpeech(FomcBase):

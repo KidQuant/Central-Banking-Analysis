@@ -18,6 +18,8 @@ class FomcStatement(FomcBase):
     """
     A convenient class for extracting statement from the FOMC website
     Example Usage:
+        fomc = FomcStatement()
+        df = fomc.get_contents()
     """
 
     def __init__(self, verbose=True, max_threads=10, base_dir="../data/FOMC/"):

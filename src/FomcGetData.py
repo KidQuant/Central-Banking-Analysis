@@ -5,7 +5,6 @@ from datetime import date
 import numpy as np
 import pandas as pd
 
-from fomc_get_data.FomcBase import FomcBase
 from fomc_get_data.FomcMeetingScript import FomcMeetingScript
 from fomc_get_data.FomcMinutes import FomcMinutes
 from fomc_get_data.FomcPresConfScript import FomcPresConfScript
