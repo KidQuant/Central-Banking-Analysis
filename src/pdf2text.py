@@ -4,7 +4,8 @@ def pdf2text(filename):
     raw = parser.from_file(filename + ".pdf")
 
     f = open(filename + ".txt", "w+")
-    f.write(raw(["content"].strip()))
+    f.write(raw["content"].strip())
+    f.close
 
 
 import sys

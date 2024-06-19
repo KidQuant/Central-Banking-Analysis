@@ -1,6 +1,7 @@
 import pickle
 import sys
 from datetime import date
+from os import write
 
 import numpy as np
 import pandas as pd
@@ -53,24 +54,22 @@ if __name__ == "__main__":
         print("Please specify the first argument from ", content_type_all)
         sys.exit(1)
 
-    if (from_year < 1980) or (from_year > 2020):
+    if (from_year < 1990) or (from_year > 2024):
         print("Usage: ", pg_name)
         print("Please specify the second argument between 1980 and 2020")
-        sys.exit(1)
 
     if content_type == "all":
         fomc = FomcStatement()
         download_data(fomc, from_year)
         fomc = FomcMinutes()
         download_data(fomc, from_year)
-        fomc = FomcMeetingScript()
-        download_data(fomc, from_year)
+        # fomc = FomcMeetingScript()
+        # download_data(fomc, from_year)
         fomc = FomcPresConfScript()
         download_data(fomc, from_year)
         fomc = FomcSpeech()
         download_data(fomc, from_year)
         fomc = FomcTestimony()
-        download_data(fomc, from_year)
     else:
         if content_type == "statement":
             fomc = FomcStatement()

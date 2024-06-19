@@ -50,6 +50,7 @@ class FomcTestimony(FomcBase):
                 from_year,
             )
 
+        # xhr ajax 请求返回包
         url = self.base_url + "/json/ne-testimony.json"
         res = requests.get(url)
         res_list = json.loads(res.text)

@@ -52,7 +52,7 @@ if __name__ == "__main__":
 
     if len(sys.argv) != 2:
         print("Usage: ", pg_name)
-        print("Please specify the first argument between 1936 and 2015")
+        print("Please specify the first argument between 1936 and 2018")
         sys.exit(1)
 
     from_year = sys.argv[1]
@@ -66,9 +66,9 @@ if __name__ == "__main__":
             print("Please specify the first argument between 1936 and 2015")
             sys.exit(1)
 
-        if (from_year < 1936) or (from_year > 2015):
+        if (from_year < 1936) or (from_year > 2018):
             print("Usage: ", pg_name)
-            print("Please specify the first argument between 1936 and 2015")
+            print("Please specify the first argument between 1936 and 2018")
             sys.exit(1)
     else:
         from_year = 1936
@@ -76,7 +76,7 @@ if __name__ == "__main__":
             "From year is set as 1936. Please specify the year as the first argument if required."
         )
 
-    # Retrieve FOMC Meeting date from current page - from 2015 to 2020
+    # Retrieve FOMC Meeting date from current page - from 2019 to 2024
     r = requests.get(calendar_url)
     soup = BeautifulSoup(r.text, "html.parser")
     panel_divs = soup.find_all("div", {"class": "panel panel-default"})
@@ -128,12 +128,12 @@ if __name__ == "__main__":
                 }
             )
 
-    # Retrieve FOMC Meeting date older than 2015
-    for year in range(from_year, 2015):
+    # Retrieve FOMC Meeting date older than 2019
+    for year in range(from_year, 2019):
         hist_url = base_url + "/monetarypolicy/fomchistorical" + str(year) + ".htm"
         r = requests.get(hist_url)
         soup = BeautifulSoup(r.text, "html.parser")
-        if year in (2011, 2012, 2013, 2014):
+        if year in range(2011, 2019):
             panel_headings = soup.find_all("h5", {"class": "panel-heading"})
         else:
             panel_headings = soup.find_all("div", {"class": "panel-heading"})
@@ -141,24 +141,19 @@ if __name__ == "__main__":
         for panel_heading in panel_headings:
             date_text = panel_heading.get_text().strip()
             # print("Date: ", date_text)
-            regex = r"(January|February|March|April|May|June|July|August|September|October|November|December).*\s(\d*-)*(\d+)\s+(Meeting|Conference Calls?|\(unscheduled\))\s-\s(\d+)"
+            regex = r".*(January|February|March|April|May|June|July|August|September|October|November|December\
+                |Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec).*\s(\d*-)*(\d+)\s+(Meeting|Conference Calls?|\(unscheduled\))\s-\s(\d+)"
+
             date_text_ext = re.findall(regex, date_text)[0]
             meeting_date_str = (
                 date_text_ext[4] + "-" + date_text_ext[0] + "-" + date_text_ext[2]
             )
-            # print("   Extracted:", meeting_date_str)
-            if meeting_date_str == "1992-June-1":
-                meeting_date_str = "1992-July-1"
-            elif meeting_date_str == "1995-January-1":
-                meeting_date_str = "1995-February-1"
-            elif meeting_date_str == "1998-June-1":
-                meeting_date_str = "1998-July-1"
-            elif meeting_date_str == "2012-July-1":
-                meeting_date_str = "2012-August-1"
-            elif meeting_date_str == "2013-April-1":
-                meeting_date_str = "2013-May-1"
 
-            meeting_date = datetime.strptime(meeting_date_str, "%Y-%B-%d")
+            # short/long version of month expression
+            if len(date_text_ext[0]) == 3:
+                meeting_date = datetime.strptime(meeting_date_str, "%Y-%b-%d")
+            else:
+                meeting_date = datetime.strptime(meeting_date_str, "%Y-%B-%d")
             is_confcall = "Conference Call" in date_text_ext[3]
             is_unscheduled = "unscheduled" in date_text_ext[3]
             date_list.append(

@@ -8,6 +8,12 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 import requests
+# Tika depends on Java version, so use textract instead as the pdf is anyway a simple text only
+# # User TIKA for pdf parsing
+# os.environ['TIKA_SERVER_JAR'] = 'https://repo1.maven.org/maven2/org/apache/tika/tika-server/1.19/tika-server-1.19.jar'
+# import tika
+# from tika import parser
+import textract
 from bs4 import BeautifulSoup
 
 # Import parent class
@@ -27,8 +33,10 @@ class FomcMinutes(FomcBase):
 
     def _get_links(self, from_year):
         """
-        Override private function that sets all the links for the contents to download
-        on FOMC websites from from_year (=min(2015, from_year)) to the current most recent year
+        Override private function that sets all the links for the contents to download on FOMC website
+         from from_year (=min(2018, from_year)) to the current most recent year, e.g. 2024 today
+
+        Current year - 5 -1: Meeting scripts delays uploads after 5 years
         """
         self.links = []
         self.titles = []
@@ -38,7 +46,9 @@ class FomcMinutes(FomcBase):
         r = requests.get(self.calendar_url)
         soup = BeautifulSoup(r.text, "html.parser")
 
-        # Getting links from current pages. Meeting scripts are not available
+        year_today = datetime.today().year
+
+        # Getting links from current page. Meetin scripts are not available.
         if self.verbose:
             print("Getting links for minutes...")
         contents = soup.find_all(
@@ -47,19 +57,19 @@ class FomcMinutes(FomcBase):
 
         self.links = [content.attrs["href"] for content in contents]
         self.speakers = [
-            self._speaker_from_date(self._date_from_links(x)) for x in self.links
+            self._speaker_from_date(self._date_from_link(x)) for x in self.links
         ]
         self.titles = ["FOMC Meeting Minutes"] * len(self.links)
         self.dates = [
-            datetime.strptime(self._date_from_links(x), "%Y-%m-%d") for x in self.links
+            datetime.strptime(self._date_from_link(x), "%Y-%m-%d") for x in self.links
         ]
         if self.verbose:
             print("{} links found in the current page.".format(len(self.links)))
 
-        # Archived before 2015
-        if from_year <= 2014:
-            print("Getting links from archive page...")
-            for year in range(from_year, 2015):
+        # Archived before 2018
+        if from_year <= year_today - 6:
+            print("Getting links from archive pages...")
+            for year in range(from_year, year_today - 5):
                 yearly_contents = []
                 fomc_yearly_url = (
                     self.base_url
@@ -79,7 +89,7 @@ class FomcMinutes(FomcBase):
                     self.links.append(yearly_content.attrs["href"])
                     self.speakers.append(
                         self._speaker_from_date(
-                            self._date_from_links(yearly_content.attrs["href"])
+                            self._date_from_link(yearly_content.attrs["href"])
                         )
                     )
                     self.titles.append("FOMC Meeting Minutes")
@@ -89,6 +99,7 @@ class FomcMinutes(FomcBase):
                             "%Y-%m-%d",
                         )
                     )
+                    # Sometimes minutes carries the first day of the meeting before 2000, so update them to the 2nd day
                     if self.dates[-1] == datetime(1996, 1, 30):
                         self.dates[-1] = datetime(1996, 1, 31)
                     elif self.dates[-1] == datetime(1996, 7, 2):
@@ -96,7 +107,7 @@ class FomcMinutes(FomcBase):
                     elif self.dates[-1] == datetime(1997, 2, 4):
                         self.dates[-1] = datetime(1997, 2, 5)
                     elif self.dates[-1] == datetime(1997, 7, 1):
-                        self.dates = datetime(1997, 7, 2)
+                        self.dates[-1] = datetime(1997, 7, 2)
                     elif self.dates[-1] == datetime(1998, 2, 3):
                         self.dates[-1] = datetime(1998, 2, 4)
                     elif self.dates[-1] == datetime(1998, 6, 30):
@@ -108,29 +119,28 @@ class FomcMinutes(FomcBase):
 
                 if self.verbose:
                     print(
-                        "YEAR: {} - {} links found.".foramt(year, len(yearly_contents))
+                        "YEAR: {} - {} links found.".format(year, len(yearly_contents))
                     )
-            print("There are total ", len(self.links), "links for ", self.content_type)
+        print("There are total ", len(self.links), " links for ", self.content_type)
 
-    def _add_articles(self, link, index=None):
+    def _add_article(self, link, index=None):
         """
         Override a private function that adds a related article for 1 link into the instance variable
         The index is the index in the article to add to.
-        Due to concurrent processing, we need to make sure the article are stored in the right order
+        Due to concurrent prcessing, we need to make sure the articles are stored in the right order
         """
         if self.verbose:
-            sys.stdout.writes(".")
+            sys.stdout.write(".")
             sys.stdout.flush()
 
         res = requests.get(self.base_url + link)
         html = res.text
-        html = html.replace()
 
         # p tag is not properly closed in many cases
-        html = html.replace("<P", "<P").replace("</P>", "</P")
+        html = html.replace("<P", "<p").replace("</P>", "</p>")
         html = html.replace("<p", "</p><p").replace("</p><p", "<p", 1)
 
-        # remove all after appendix or reference
+        # remove all after appendix or references
         x = re.search(
             r"(<b>references|<b>appendix|<strong>references|<strong>appendix)",
             html.lower(),
@@ -141,15 +151,18 @@ class FomcMinutes(FomcBase):
         # Parse html text by BeautifulSoup
         article = BeautifulSoup(html, "html.parser")
 
-        # if link == '/fomc/MINUTES/1994/19940517min.htm'
-        #   print(articles)
+        # if link == '/fomc/MINUTES/1994/19940517min.htm':
+        #    print(article)
 
-        # Remove footnotes
+        # Remove footnote
         for fn in article.find_all("a", {"name": re.compile("fn\d")}):
-
+            # if fn.parent:
+            #     fn.parent.decompose()
+            # else:
+            #     fn.decompose()
             fn.decompose()
-
-        paragraphs = article.finalAll("p")
+        # Get all p tag
+        paragraphs = article.findAll("p")
         self.articles[index] = "\n\n[SECTION]\n\n".join(
             [paragraph.get_text().strip() for paragraph in paragraphs]
         )
