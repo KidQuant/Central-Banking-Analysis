@@ -8,12 +8,6 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 import requests
-# Tika depends on Java version, so use textract instead as the pdf is anyway a simple text only
-# # User TIKA for pdf parsing
-# os.environ['TIKA_SERVER_JAR'] = 'https://repo1.maven.org/maven2/org/apache/tika/tika-server/1.19/tika-server-1.19.jar'
-# import tika
-# from tika import parser
-import textract
 from bs4 import BeautifulSoup
 
 # Import parent class
@@ -34,9 +28,7 @@ class FomcMinutes(FomcBase):
     def _get_links(self, from_year):
         """
         Override private function that sets all the links for the contents to download on FOMC website
-         from from_year (=min(2018, from_year)) to the current most recent year, e.g. 2024 today
-
-        Current year - 5 -1: Meeting scripts delays uploads after 5 years
+         from from_year (=min(2015, from_year)) to the current most recent year
         """
         self.links = []
         self.titles = []
@@ -45,8 +37,6 @@ class FomcMinutes(FomcBase):
 
         r = requests.get(self.calendar_url)
         soup = BeautifulSoup(r.text, "html.parser")
-
-        year_today = datetime.today().year
 
         # Getting links from current page. Meetin scripts are not available.
         if self.verbose:
@@ -66,10 +56,10 @@ class FomcMinutes(FomcBase):
         if self.verbose:
             print("{} links found in the current page.".format(len(self.links)))
 
-        # Archived before 2018
-        if from_year <= year_today - 6:
+        # Archived before 2019
+        if from_year <= 2019:
             print("Getting links from archive pages...")
-            for year in range(from_year, year_today - 5):
+            for year in range(from_year, 2019):
                 yearly_contents = []
                 fomc_yearly_url = (
                     self.base_url

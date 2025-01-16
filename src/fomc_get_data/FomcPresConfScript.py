@@ -8,6 +8,7 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 import requests
+
 # Tika depends on Java version, so use textract instead as the pdf is anyway a simple text only
 # # User TIKA for pdf parsing
 # os.environ['TIKA_SERVER_JAR'] = 'https://repo1.maven.org/maven2/org/apache/tika/tika-server/1.19/tika-server-1.19.jar'
@@ -29,15 +30,13 @@ class FomcPresConfScript(FomcBase):
         df = fomc.get_contents()
     """
 
-    def __init__(self, verbose=True, max_threads=10, base_dir="../data/FOMC"):
+    def __init__(self, verbose=True, max_threads=10, base_dir="../data/FOMC/"):
         super().__init__("presconf_script", verbose, max_threads, base_dir)
 
     def _get_links(self, from_year):
         """
         Override private function that sets all the links for the contents to download on FOMC website
-        from from_year (=min(2018, from_year)) to the current most recent year
-
-        Current year - 5 -1: Meeting scripts delays uploads after 5 years
+         from from_year (=min(2015, from_year)) to the current most recent year
         """
         self.links = []
         self.titles = []
@@ -46,8 +45,6 @@ class FomcPresConfScript(FomcBase):
 
         r = requests.get(self.calendar_url)
         soup = BeautifulSoup(r.text, "html.parser")
-
-        year_today = datetime.today().year
 
         if self.verbose:
             print("Getting links for press conference scripts...")
@@ -75,14 +72,13 @@ class FomcPresConfScript(FomcBase):
                         self._date_from_link(content.attrs["href"]), "%Y-%m-%d"
                     )
                 )
-
         if self.verbose:
             print("{} links found in current page.".format(len(self.links)))
 
-        # Archived before 2015
-        if from_year <= year_today - 6:
-            print("Getting links from achive pages...")
-            for year in range(from_year, year_today - 5):
+        # Archived before 2019
+        if from_year <= 2018:
+            print("Getting links from archive pages...")
+            for year in range(from_year, 2019):
                 yearly_contents = []
                 fomc_yearly_url = (
                     self.base_url
@@ -111,7 +107,7 @@ class FomcPresConfScript(FomcBase):
                         href=re.compile("^/mediacenter/files/FOMCpresconf\d{8}.pdf"),
                     )
                     for yearly_content in yearly_contents:
-                        # print (yearly_contents)
+                        # print(yearly_content)
                         self.links.append(yearly_content.attrs["href"])
                         self.speakers.append(
                             self._speaker_from_date(
@@ -125,24 +121,19 @@ class FomcPresConfScript(FomcBase):
                                 "%Y-%m-%d",
                             )
                         )
-                    if self.verbose:
-                        print(
-                            "YEAR: {} - {} links found.".format(
-                                year, len(presconf_hist_urls)
-                            )
+                if self.verbose:
+                    print(
+                        "YEAR: {} - {} links found.".format(
+                            year, len(presconf_hist_urls)
                         )
-                print(
-                    "There are total ",
-                    len(self.links),
-                    " links for ",
-                    self.content_type,
-                )
+                    )
+            print("There are total ", len(self.links), " links for ", self.content_type)
 
     def _add_article(self, link, index=None):
         """
-        Override a private function that adds a related for 1 lilnk into the instance variable
+        Override a private function that adds a related article for 1 link into the instance variable
         The index is the index in the article to add to.
-        Due to concurrent processing, we need to make sure the articles are stored in the right order
+        Due to concurrent prcessing, we need to make sure the articles are stored in the right order
         """
         if self.verbose:
             sys.stdout.write(".")
@@ -159,7 +150,6 @@ class FomcPresConfScript(FomcBase):
         # Scripts are provided only in pdf. Save the pdf and pass the content
         res = requests.get(link_url)
 
-        os.makedirs(os.path.dirname(pdf_filepath), exist_ok=True)
         with open(pdf_filepath, "wb") as f:
             f.write(res.content)
 

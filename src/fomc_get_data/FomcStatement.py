@@ -28,11 +28,8 @@ class FomcStatement(FomcBase):
     def _get_links(self, from_year):
         """
         Override private function that sets all the links for the contents to download on FOMC website
-         from from_year (=min(2018, from_year)) to the current most recent year
-
-        Current year - 5 -1: Meeting scripts delays uploads after 5 years
+         from from_year (=min(2015, from_year)) to the current most recent year
         """
-
         self.links = []
         self.titles = []
         self.speakers = []
@@ -40,8 +37,6 @@ class FomcStatement(FomcBase):
 
         r = requests.get(self.calendar_url)
         soup = BeautifulSoup(r.text, "html.parser")
-
-        year_today = datetime.today().year
 
         # Getting links from current page. Meetin scripts are not available.
         if self.verbose:
@@ -65,10 +60,10 @@ class FomcStatement(FomcBase):
         if self.verbose:
             print("{} links found in the current page.".format(len(self.links)))
 
-        # Archived before 2018
-        if from_year <= year_today - 6:
+        # Archived before 2019
+        if from_year <= 2018:
             print("Getting links from archive pages...")
-            for year in range(from_year, year_today - 5):
+            for year in range(from_year, 2019):
                 yearly_contents = []
                 fomc_yearly_url = (
                     self.base_url
@@ -121,24 +116,11 @@ class FomcStatement(FomcBase):
         if self.verbose:
             sys.stdout.write(".")
             sys.stdout.flush()
+
         res = requests.get(self.base_url + link)
         html = res.text
-        # p tag is not properly closed in many cases
-        html = html.replace("<P", "<p").replace("</P>", "</p>")
-        html = html.replace("<p", "</p><p").replace("</p><p", "<p", 1)
         article = BeautifulSoup(html, "html.parser")
-        paragraphs = article.find_all("p")
-        paragraphs = [paragraph.get_text().strip() for paragraph in paragraphs]
-        paragraphs = [
-            words
-            for words in paragraphs
-            if len(words.split(" ")) > 25 and "else if" not in words
-        ]
-
-        # After 2006, hardcode rule
-        if (
-            "The Federal Reserve, the central bank of the United States, provides"
-            in paragraphs[0]
-        ):
-            paragraphs = paragraphs[2:]
-        self.articles[index] = "\n\n[SECTION]\n\n".join(paragraphs)
+        paragraphs = article.findAll("p")
+        self.articles[index] = "\n\n[SECTION]\n\n".join(
+            [paragraph.get_text().strip() for paragraph in paragraphs]
+        )

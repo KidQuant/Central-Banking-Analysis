@@ -5,7 +5,7 @@ def pdf2text(filename):
 
     f = open(filename + ".txt", "w+")
     f.write(raw["content"].strip())
-    f.close
+    f.close()
 
 
 import sys
